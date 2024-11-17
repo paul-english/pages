@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Lisp REPL</title>
+    <script src="https://unpkg.com/alpinejs" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-900 text-slate-200 p-8">
+    <div x-data="lispRepl()" class="max-w-3xl mx-auto pr-72">
+        <h1 class="text-3xl font-bold mb-6">Mini Lisp REPL</h1>
+
+        <!-- Add this after the h1 and before the history div -->
+        <div
+            class="fixed right-4 top-4 bottom-4 w-64 overflow-y-auto bg-slate-800/90 rounded-lg p-4 text-xs backdrop-blur-sm">
+            <h2 class="text-sm font-bold mb-3">Examples</h2>
+            <div class="space-y-4">
+                <div>
+                    <h3 class="font-semibold text-emerald-400 mb-1.5 text-xs">Basic Operations</h3>
+                    <div class="space-y-1">
+                        <a href="#" @click.prevent="setExample('(atom 1)'
+                            class=" block text-slate-300 hover:text-emerald-400">
+                            <code class="font-mono">atom: (atom 1)</code>
+                        </a>
+                        <a href="#" @click.prevent="setExample('(atom (quote (1 2)))')"
+                            class="block text-slate-300 hover:text-emerald-400">
+                            <code class="font-mono">atom list: (atom (quote (1 2)))</code>
+                        </a>
+                        <a href="#" @click.prevent="setExample('(quote (a b c))')"
+                            class="block text-slate-300 hover:text-emerald-400">
+                            <code class="font-mono">quote: (quote (a b c))</code>
+                        </a>
+                        <a href="#" @click.prevent="setExample('(eq 1 1)')"
+                            class="block text-slate-300 hover:text-emerald-400">
+                            <code class="font-mono">equality: (eq 1 1)</code>
+                        </a>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-semibold text-emerald-400 mb-1.5 text-xs">List Operations</h3>
+                    <div class="space-y-1">
+                        <a href="#" @click.prevent="setExample('(car (quote (1 2 3)))')"
+                            class="block text-slate-300 hover:text-emerald-400">
+                            <code class="font-mono">car: (car (quote (1 2 3)))</code>
+                        </a>
+                        <a href="#" @click.prevent="setExample('(cdr (quote (1 2 3)))')"
+                            class="block text-slate-300 hover:text-emerald-400">
+                            <code class="font-mono">cdr: (cdr (quote (1 2 3)))</code>
+                        </a>
+                        <a href="#" @click.prevent="setExample('(cons 1 (quote (2 3)))')"
+                            class="block text-slate-300 hover:text-emerald-400">
+                            <code class="font-mono">cons: (cons 1 (quote (2 3)))</code>
+                        </a>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-semibold text-emerald-400 mb-1.5 text-xs">Control Flow</h3>
+                    <div class="space-y-1">
+                        <a href="#" @click.prevent="setExample('(cond ((eq 1 2) 3) ((eq 1 1) 4))')"
+                            class="block text-slate-300 hover:text-emerald-400">
+                            <code class="font-mono">cond: (cond ((eq 1 2) 3) ((eq 1 1) 4))</code>
+                        </a>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-semibold text-emerald-400 mb-1.5 text-xs">Functions</h3>
+                    <div class="space-y-1">
+                        <a href="#"
+                            @click.prevent="setExample('(define factorial (lambda (n) (cond ((eq n 0) 1) (1 (* n (factorial (- n 1)))))))')"
+                            class="block text-slate-300 hover:text-emerald-400">
+                            <code class="font-mono">Define factorial</code>
+                        </a>
+                        <a href="#" @click.prevent="setExample('(factorial 5)')"
+                            class="block text-slate-300 hover:text-emerald-400">
+                            <code class="font-mono">factorial: (factorial 5)</code>
+                        </a>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-semibold text-emerald-400 mb-1.5 text-xs">Math</h3>
+                    <div class="space-y-1">
+                        <a href="#" @click.prevent="setExample('(+ 1 2 3)')"
+                            class="block text-slate-300 hover:text-emerald-400">
+                            <code class="font-mono">add: (+ 1 2 3)</code>
+                        </a>
+                        <a href="#" @click.prevent="setExample('(* 2 3 4)')"
+                            class="block text-slate-300 hover:text-emerald-400">
+                            <code class="font-mono">multiply: (* 2 3 4)</code>
+                        </a>
+                        <a href="#" @click.prevent="setExample('(+ (* 2 3) (- 10 5))')"
+                            class="block text-slate-300 hover:text-emerald-400">
+                            <code class="font-mono">nested: (+ (* 2 3) (- 10 5))</code>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History of evaluations -->
+        <div class="space-y-4 mb-6">
+            <template x-for="(entry, index) in history" :key="index">
+                <div class="bg-slate-800 rounded-lg p-4">
+                    <div class="font-mono text-emerald-400">> <span x-text="entry.input"></span></div>
+                    <div class="font-mono text-purple-400 mt-2">=> <span x-text="entry.output"></span></div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Input area -->
+        <div class="flex gap-2">
+            <textarea x-model="currentInput" @keydown.enter.prevent="evaluate"
+                @input="$el.style.height = ''; $el.style.height = $el.scrollHeight + 'px'"
+                placeholder="Enter Lisp expression..." rows="1"
+                class="flex-1 bg-slate-800 text-slate-200 px-4 py-2 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none overflow-hidden min-h-[2.5rem]"></textarea>
+            <button @click="evaluate"
+                class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg font-semibold h-fit">Eval</button>
+        </div>
+    </div>
+
+    <script>
+        function lispRepl() {
+            return {
+                currentInput: '',
+                history: [],
+                env: {},
+
+                setExample(code) {
+                    this.currentInput = code;
+                    this.$nextTick(() => {
+                        let textarea = document.querySelector('textarea');
+                        textarea.style.height = '';
+                        textarea.style.height = textarea.scrollHeight + 'px';
+                    });
+                },
+
+                stringify(value) {
+                    if (value && value.type === 'lambda') {
+                        return `(lambda ${JSON.stringify(value.params)} ${JSON.stringify(value.body)})`;
+                    }
+                    if (Array.isArray(value)) {
+                        return `(${value.map(v => this.stringify(v)).join(' ')})`;
+                    }
+                    return String(value);
+                },
+
+                evaluate() {
+                    if (!this.currentInput.trim()) return;
+
+                    try {
+                        const result = this.evalLisp(this.currentInput);
+                        this.history.push({
+                            input: this.currentInput,
+                            output: this.stringify(result)
+                        });
+                    } catch (e) {
+                        this.history.push({
+                            input: this.currentInput,
+                            output: `Error: ${e.message}`
+                        });
+                    }
+
+                    this.currentInput = '';
+                },
+
+                tokenize(input) {
+                    return input
+                        .replace(/\(/g, ' ( ')
+                        .replace(/\)/g, ' ) ')
+                        .trim()
+                        .split(/\s+/);
+                },
+
+                parse(tokens) {
+                    if (tokens.length === 0) throw new Error('Unexpected EOF');
+
+                    const token = tokens.shift();
+                    if (token === '(') {
+                        const list = [];
+                        while (tokens[0] !== ')') {
+                            if (!tokens.length) throw new Error('Missing closing parenthesis');
+                            list.push(this.parse(tokens));
+                        }
+                        tokens.shift(); // Remove ')'
+                        return list;
+                    } else if (token === ')') {
+                        throw new Error('Unexpected )');
+                    } else {
+                        // Convert numbers
+                        if (!isNaN(token)) return Number(token);
+                        return token;
+                    }
+                },
+
+                evalLisp(input) {
+                    const tokens = this.tokenize(input);
+                    const ast = this.parse(tokens);
+                    return this.evaluate_ast(ast);
+                },
+
+                evaluate_ast(ast, localEnv = null) {
+                    console.log('-----')
+                    console.log('evaluate_ast', Alpine.raw(ast));
+                    console.log('localEnv', localEnv);
+                    console.log('this.env', Alpine.raw(this.env));
+                    const env = localEnv || this.env;
+
+                    // Handle atoms (numbers, strings, symbols)
+                    if (!Array.isArray(ast)) {
+                        if (typeof ast === 'number') return ast;
+                        // Check local environment first, then global environment
+                        if (localEnv && ast in localEnv) return localEnv[ast];
+                        if (ast in this.env) return this.env[ast];
+                        return ast;
+                    }
+
+                    const [op, ...args] = ast;
+
+                    // Special forms
+                    switch (op) {
+                        case 'quote':
+                            return args[0];
+
+                        case 'atom':
+                            const val = this.evaluate_ast(args[0], env);
+                            return !Array.isArray(val);
+
+                        case 'eq':
+                            const [a1, a2] = args.map(arg => this.evaluate_ast(arg, env));
+                            return a1 === a2;
+
+                        case 'car':
+                            const list = this.evaluate_ast(args[0], env);
+                            if (!Array.isArray(list)) throw new Error('car: argument must be a list');
+                            return list[0];
+
+                        case 'cdr':
+                            const lst = this.evaluate_ast(args[0], env);
+                            if (!Array.isArray(lst)) throw new Error('cdr: argument must be a list');
+                            return lst.slice(1);
+
+                        case 'cons':
+                            const [head, tail] = args.map(arg => this.evaluate_ast(arg, env));
+                            if (!Array.isArray(tail)) throw new Error('cons: second argument must be a list');
+                            return [head, ...tail];
+
+                        case 'cond':
+                            for (const [condition, result] of args) {
+                                if (this.evaluate_ast(condition, env)) {
+                                    return this.evaluate_ast(result, env);
+                                }
+                            }
+                            return null;
+
+                        case 'lambda':
+                            const [params, body] = args;
+                            return {
+                                type: 'lambda',
+                                params,
+                                body,
+                                env: { ...env }
+                            };
+
+                        case 'define':
+                            const [name, value] = args;
+                            env[name] = this.evaluate_ast(value, env);
+                            console.log('set env', env);
+                            return env[name];
+
+                        case 'apply':
+                            const [func, argList] = args.map(arg => this.evaluate_ast(arg, env));
+                            if (func.type !== 'lambda') throw new Error('apply: first argument must be a lambda');
+                            const newEnv = { ...func.env };
+                            func.params.forEach((param, i) => {
+                                newEnv[param] = argList[i];
+                            });
+                            return this.evaluate_ast(func.body, newEnv);
+
+                        // Existing arithmetic operations
+                        case '+': return args.map(arg => this.evaluate_ast(arg, env)).reduce((a, b) => a + b, 0);
+                        case '-': return args.map(arg => this.evaluate_ast(arg, env)).reduce((a, b) => a - b);
+                        case '*': return args.map(arg => this.evaluate_ast(arg, env)).reduce((a, b) => a * b, 1);
+                        case '/': return args.map(arg => this.evaluate_ast(arg, env)).reduce((a, b) => a / b);
+
+                        // Function application
+                        default:
+                            const evaluated = localEnv && op in localEnv ?
+                                localEnv[op] :
+                                (op in this.env ? this.env[op] : this.evaluate_ast(op, env));
+
+                            if (evaluated && evaluated.type === 'lambda') {
+                                const evaluatedArgs = args.map(arg => this.evaluate_ast(arg, env));
+                                const newEnv = { ...evaluated.env };
+                                evaluated.params.forEach((param, i) => {
+                                    newEnv[param] = evaluatedArgs[i];
+                                });
+                                return this.evaluate_ast(evaluated.body, newEnv);
+                            }
+                            console.log('---reached unknown operator', Alpine.raw(op), Alpine.raw(args), Alpine.raw(env));
+                            throw new Error(`Unknown operator: ${op}`);
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

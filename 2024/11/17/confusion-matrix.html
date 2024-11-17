@@ -39,6 +39,12 @@
         dragField = null;
 
         constructor() {
+            // Initialize from URL parameters if they exist
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('tp')) this.tp = Math.max(0, parseInt(params.get('tp')));
+            if (params.has('fp')) this.fp = Math.max(0, parseInt(params.get('fp')));
+            if (params.has('fn')) this.fn = Math.max(0, parseInt(params.get('fn')));
+            if (params.has('tn')) this.tn = Math.max(0, parseInt(params.get('tn')));
         }
 
         init() {
@@ -98,13 +104,11 @@
         handleDrag(e) {
             if (this.dragStart === null) return;
 
-            const diff = Math.round((e.clientX - this.dragStart) / 2);  // Slower movement
+            const diff = Math.round((e.clientX - this.dragStart) / 2);
             let newValue = Math.max(0, Math.round(this.dragValue + diff));
-            console.log('---', this.dragField, newValue);
-
-            e.preventDefault();
 
             this[this.dragField] = newValue;
+            this.updateURL(); // Update URL when values change
         }
 
         handleDragEnd() {
@@ -118,13 +122,24 @@
             document.removeEventListener('mousemove', this.handleDrag);
             document.removeEventListener('mouseup', this.handleDragEnd);
         }
+
+        updateURL() {
+            const params = new URLSearchParams();
+            params.set('tp', Math.round(this.tp));
+            params.set('fp', Math.round(this.fp));
+            params.set('fn', Math.round(this.fn));
+            params.set('tn', Math.round(this.tn));
+
+            // Update URL without refreshing the page
+            window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+        }
     }
 </script>
 
 <body class="bg-slate-50 p-8" x-data="new ConfusionMatrix()" x-init="init()">
 
     <div class="max-w-4xl mx-auto">
-        <h1 class="text-4xl font-bold mb-8 text-slate-800">Understanding Confusion Matrix</h1>
+        <h1 class="text-4xl font-bold mb-8 text-slate-800">Single-Class Confusion Matrix</h1>
 
         <p class="mb-8 text-slate-600">
             Drag the numbers in the confusion matrix left or right to adjust the values and see how they affect all

@@ -45,6 +45,12 @@
                     <li>Green: Good match (above IoU threshold)</li>
                 </ul>
             </div>
+            <div class="bg-white p-6 rounded-lg shadow-md mt-4">
+                <h2 class="text-xl font-bold mb-4">Debug Info</h2>
+                <div class="max-h-48 overflow-y-auto">
+                    <pre x-text="JSON.stringify(boxes, null, 2)" class="text-sm"></pre>
+                </div>
+            </div>
 
             <!-- Controls -->
             <div class="bg-white p-6 rounded-lg shadow-md">
@@ -97,6 +103,19 @@
                         <p>False Positives: <span x-text="falsePositives"></span></p>
                     </div>
                 </div>
+                <div class="mt-4">
+                    <p class="text-gray-600 mb-2">
+                        See how these results translate into a confusion matrix. False negatives (FN)
+                        are ground truth boxes without a matching prediction. True negatives (TN) in object
+                        detection would technically be all possible box locations where there isn't an object
+                        and we correctly didn't predict one - this number would be extremely large and not
+                        meaningful, which is why object detection typically uses other metrics like
+                        Precision and Recall instead of accuracy.
+                    </p>
+                    <a :href="getConfusionMatrixLink()" class="text-blue-600 hover:text-blue-800 underline">
+                        View Confusion Matrix
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -110,6 +129,65 @@
 
                 init() {
                     this.setupInteract();
+                    this.initializeFromURL();
+
+                    // Add a watcher for boxes
+                    this.$watch('boxes', () => {
+                        this.updateURL();
+                    }, { deep: true });
+                },
+
+                initializeFromURL() {
+                    const params = new URLSearchParams(window.location.search);
+
+                    if (params.has('iou')) {
+                        this.iouThreshold = parseFloat(params.get('iou'));
+                    }
+
+                    if (params.has('boxes')) {
+                        try {
+                            const boxesData = JSON.parse(params.get('boxes'));
+                            if (Array.isArray(boxesData)) {
+                                this.boxes = boxesData.map(box => ({
+                                    id: this.nextId++,
+                                    type: box[4] === 0 ? 'gt' : 'pred',
+                                    x: parseFloat(box[0]),
+                                    y: parseFloat(box[1]),
+                                    width: parseFloat(box[2]),
+                                    height: parseFloat(box[3])
+                                }));
+                            }
+                        } catch (e) {
+                            console.error('Error parsing boxes from URL:', e);
+                        }
+                    }
+                },
+
+                updateURL() {
+                    // Wait for Alpine to finish updating the DOM and reactive state
+                    this.$nextTick(() => {
+                        const params = new URLSearchParams();
+
+                        params.set('iou', this.iouThreshold);
+
+                        // Get the raw value without proxies
+                        const currentBoxes = JSON.parse(JSON.stringify(this.boxes));
+                        console.log('Current boxes:', currentBoxes);
+
+                        const boxesData = currentBoxes.map(box => [
+                            Math.round(box.x),
+                            Math.round(box.y),
+                            Math.round(box.width),
+                            Math.round(box.height),
+                            box.type === 'gt' ? 0 : 1
+                        ]);
+
+                        console.log('Encoded boxes:', boxesData);
+                        params.set('boxes', JSON.stringify(boxesData));
+
+                        const newURL = `${window.location.pathname}?${params.toString()}`;
+                        window.history.pushState({}, '', newURL);
+                    });
                 },
 
                 addBox(type) {
@@ -122,10 +200,15 @@
                         height: 100
                     };
                     this.boxes.push(box);
+                    // Debug log
+                    console.log('Added box:', box);
+                    console.log('All boxes after add:', this.boxes);
+                    this.updateURL();
                 },
 
                 clearBoxes() {
                     this.boxes = [];
+                    this.updateURL();
                 },
 
                 getBoxClass(box) {
@@ -167,6 +250,9 @@
 
                                         box.x = x;
                                         box.y = y;
+                                        // Debug log
+                                        console.log('Box moved:', box);
+                                        this.updateURL();
                                     }
                                 }
                             })
@@ -186,6 +272,7 @@
 
                                         box.width = event.rect.width;
                                         box.height = event.rect.height;
+                                        this.updateURL();
                                     }
                                 }
                             });
@@ -293,7 +380,17 @@
 
                         this.boxes.push(predBox);
                     }
-                }
+                },
+
+                getConfusionMatrixLink() {
+                    const params = new URLSearchParams({
+                        tp: this.truePositives,
+                        fp: this.falsePositives,
+                        fn: this.gtCount - this.truePositives,
+                        tn: 999999999
+                    });
+                    return `./confusion-matrix.html?${params.toString()}`;
+                },
             }));
         });
     </script>

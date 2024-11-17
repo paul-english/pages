@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding the Single-Class Confusion Matrix</title>
+    <script src="https://unpkg.com/alpinejs" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        a {
+            color: #64748b;
+            text-decoration: underline;
+        }
+
+        .draggable-number {
+            cursor: ew-resize;
+            user-select: none;
+            padding: 2px 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .draggable-number:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+
+<script>
+    class ConfusionMatrix {
+        tp = 938;
+        fp = 63;
+        fn = 61;
+        tn = 8938;
+        dragStart = null;
+        dragValue = null;
+        dragField = null;
+
+        constructor() {
+        }
+
+        init() {
+            // Initialize if needed
+            // Bind methods to preserve 'this' context
+            this.handleDrag = this.handleDrag.bind(this);
+            this.handleDragEnd = this.handleDragEnd.bind(this);
+        }
+
+        // Computed properties
+        total() { return this.tp + this.fp + this.fn + this.tn }
+        positive() { return this.tp + this.fn }
+        negative() { return this.fp + this.tn }
+        predictedPositive() { return this.tp + this.fp }
+        predictedNegative() { return this.fn + this.tn }
+
+        // Rates and Ratios
+        tpr() { return this.tp / this.positive() }
+        fnr() { return this.fn / this.positive() }
+        fpr() { return this.fp / this.negative() }
+        tnr() { return this.tn / this.negative() }
+        ppv() { return this.tp / this.predictedPositive() }
+        fdr() { return this.fp / this.predictedPositive() }
+        npv() { return this.tn / this.predictedNegative() }
+        for_() { return this.fn / this.predictedNegative() }
+
+        // Additional Metrics
+        prevalence() { return this.positive() / this.total() }
+        accuracy() { return (this.tp + this.tn) / this.total() }
+        balanceAcc() { return (this.tpr() + this.tnr()) / 2 }
+        f1() { return 2 * this.tp / (2 * this.tp + this.fp + this.fn) }
+        mcc() {
+            return (this.tp * this.tn - this.fp * this.fn) /
+                Math.sqrt((this.tp + this.fp) * (this.tp + this.fn) * (this.tn + this.fp) * (this.tn + this.fn))
+        }
+        bm() { return this.tpr() + this.tnr() - 1 }
+        mk() { return this.ppv() + this.npv() - 1 }
+        fm() { return Math.sqrt(this.ppv() * this.tpr()) }
+        pt() { return Math.sqrt(this.fpr()) + this.tpr() - 1 }
+        ts() { return this.tp / (this.tp + this.fn + this.fp) }
+        lrPlus() { return this.tpr() / this.fpr() }
+        lrMinus() { return this.fnr() / this.tnr() }
+        dor() { return this.lrPlus() / this.lrMinus() }
+
+        handleDragStart(e, field) {
+            this.dragStart = e.clientX;
+            this.dragValue = parseInt(this[field]);  // Ensure we have a number
+            this.dragField = field;
+
+            document.body.style.userSelect = 'none';
+
+            document.addEventListener('mousemove', this.handleDrag);
+            document.addEventListener('mouseup', this.handleDragEnd);
+            e.preventDefault();
+        }
+
+        handleDrag(e) {
+            if (this.dragStart === null) return;
+
+            const diff = Math.round((e.clientX - this.dragStart) / 2);  // Slower movement
+            let newValue = Math.max(0, Math.round(this.dragValue + diff));
+            console.log('---', this.dragField, newValue);
+
+            e.preventDefault();
+
+            this[this.dragField] = newValue;
+        }
+
+        handleDragEnd() {
+            this.dragStart = null;
+            this.dragValue = null;
+            this.dragField = null;
+
+            document.body.style.userSelect = '';
+
+            // Remove global event listeners
+            document.removeEventListener('mousemove', this.handleDrag);
+            document.removeEventListener('mouseup', this.handleDragEnd);
+        }
+    }
+</script>
+
+<body class="bg-slate-50 p-8" x-data="new ConfusionMatrix()" x-init="init()">
+
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-4xl font-bold mb-8 text-slate-800">Understanding Confusion Matrix</h1>
+
+        <p class="mb-8 text-slate-600">
+            Drag the numbers in the confusion matrix left or right to adjust the values and see how they affect all
+            related metrics.
+        </p>
+        <a href="https://en.wikipedia.org/wiki/Confusion_matrix" target="_blank" class="text-slate-600">
+            Wikipedia: Confusion Matrix
+        </a>
+
+        <table class="w-full border-collapse mb-8">
+            <tr class="text-sm text-slate-600">
+                <td class="p-4">
+                    <div>Total</div><span x-text="total().toFixed(0)"></span>
+                </td>
+                <td class="p-4">
+                    <div>Predicted Positive</div><span x-text="predictedPositive().toFixed(0)"></span>
+                </td>
+                <td class="p-4">
+                    <div>Predicted Negative</div><span x-text="predictedNegative().toFixed(0)"></span>
+                </td>
+                <td class="p-4">
+                    <div>BM</div><span x-text="bm().toFixed(3)"></span>
+                </td>
+                <td class="p-4">
+                    <div>PT</div><span x-text="pt().toFixed(3)"></span>
+                </td>
+            </tr>
+            <tr>
+                <td class="p-4">
+                    <div>Positive</div><span x-text="positive().toFixed(0)"></span>
+                </td>
+                <td class="p-4 border-t border-l border-slate-400 bg-green-300">
+                    <div><span title="True Positive"></span>TP</span></div>
+                    <span class="draggable-number" x-text="Math.round(tp)"
+                        @mousedown="handleDragStart($event, 'tp')"></span>
+                </td>
+                <td class="p-4 border-t border-r border-slate-400 bg-red-300">
+                    <div><span title="False Negative"></span>FN</span></div>
+                    <span class="draggable-number" x-text="Math.round(fn)"
+                        @mousedown="handleDragStart($event, 'fn')"></span>
+                </td>
+                <td class="p-4 bg-green-200">
+                    <div><span title="True Positive Rate"></span>TPR</span> (Recall)</div><span
+                        x-text="tpr().toFixed(3)"></span>
+                </td>
+                <td class="p-4 bg-red-200">
+                    <div><span title="False Negative Rate"></span>FNR</span></div><span
+                        x-text="fnr().toFixed(3)"></span>
+                </td>
+            </tr>
+            <tr>
+                <td class="p-4">
+                    <div>Negative</div><span x-text="negative().toFixed(0)"></span>
+                </td>
+                <td class="p-4 border-b border-l border-slate-400 bg-red-400">
+                    <div><span title="False Positive"></span>FP</span></div>
+                    <span class="draggable-number" x-text="Math.round(fp)"
+                        @mousedown="handleDragStart($event, 'fp')"></span>
+                </td>
+                <td class="p-4 border-b border-r border-slate-400 bg-green-400">
+                    <div><span title="True Negative"></span>TN</span></div>
+                    <span class="draggable-number" x-text="Math.round(tn)"
+                        @mousedown="handleDragStart($event, 'tn')"></span>
+                </td>
+                <td class="p-4 bg-red-300">
+                    <div><span title="False Positive Rate"></span>FPR</span></div><span
+                        x-text="fpr().toFixed(3)"></span>
+                </td>
+                <td class="p-4 bg-green-300">
+                    <div><span title="True Negative Rate"></span>TNR</span></div><span x-text="tnr().toFixed(3)"></span>
+                </td>
+            </tr>
+            <tr>
+                <td class="p-4">
+                    <div>Prevalence</div><span x-text="prevalence().toFixed(3)"></span>
+                </td>
+                <td class="p-4">
+                    <div><span title="Positive Predictive Value"></span>PPV</span> (Precision)</div><span
+                        x-text="ppv().toFixed(3)"></span>
+                </td>
+                <td class="p-4">
+                    <div><span title="False Omission Rate">FOR</span></div><span x-text="for_().toFixed(3)"></span>
+                </td>
+                <td class="p-4">
+                    <div><span title="Positive Likelihood Ratio"></span>LR+</span></div><span
+                        x-text="lrPlus().toFixed(3)"></span>
+                </td>
+                <td class="p-4">
+                    <div><span title="Negative Likelihood Ratio"></span>LR-</span></div><span
+                        x-text="lrMinus().toFixed(3)"></span>
+                </td>
+            </tr>
+            <tr>
+                <td class="p-4">
+                    <div>Accuracy</div><span x-text="accuracy().toFixed(3)"></span>
+                </td>
+                <td class="p-4">
+                    <div><span title="False Discovery Rate"></span>FDR</span></div><span
+                        x-text="fdr().toFixed(3)"></span>
+                </td>
+                <td class="p-4">
+                    <div><span title="Negative Predictive Value"></span>NPV</span></div><span
+                        x-text="npv().toFixed(3)"></span>
+                </td>
+                <td class="p-4">
+                    <div><span title="Markedness"></span>MK</span></div><span x-text="mk().toFixed(3)"></span>
+                </td>
+                <td class="p-4">
+                    <div><span title="Diagnostic Odds Ratio"></span>DOR</span></div><span
+                        x-text="dor().toFixed(3)"></span>
+                </td>
+            </tr>
+            <tr>
+                <td class="p-4">
+                    <div><span title="Balance Accuracy"></span>Balance Acc</span></div><span
+                        x-text="balanceAcc().toFixed(3)"></span>
+                </td>
+                <td class="p-4">
+                    <div><span title="F1 Score"></span>F1</span></div><span x-text="f1().toFixed(3)"></span>
+                </td>
+                <td class="p-4">
+                    <div><span title="Fowlkes-Mallows Index"></span>FM</span></div><span
+                        x-text="fm().toFixed(3)"></span>
+                </td>
+                <td class="p-4">
+                    <div><span title="Matthews Correlation Coefficient"></span>MCC</span></div><span
+                        x-text="mcc().toFixed(3)"></span>
+                </td>
+                <td class="p-4">
+                    <div><span title="Threat Score"></span>TS</span></div><span x-text="ts().toFixed(3)"></span>
+                </td>
+            </tr>
+        </table>
+
+        <div class="prose max-w-none">
+            <h2 class="text-2xl font-bold mb-4 text-slate-800">How to Use</h2>
+            <p class="text-slate-600">
+                Click and drag left or right on any of the four main confusion matrix values (TP, FP, TN, FN) to adjust
+                them.
+                All other metrics will update automatically. The values maintain consistency with the total positive and
+                negative cases.
+            </p>
+        </div>
+    </div>
+
+</body>
+
+</html>

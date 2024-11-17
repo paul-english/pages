@@ -1,0 +1,8 @@
+This repository hosts html and static files for my github pages site.
+
+- Use CDN's for static files.
+- Code duplication is generally ok, because each page is meant to be a standalone entity.
+- Use Tailwind CSS for styling but feel free to use it creatively, with more fun use of the utility classes.
+- Use Alpine.js for interactivity.
+
+When in doubt, ask for clarification and further specifications.

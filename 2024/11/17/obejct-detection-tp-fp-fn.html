@@ -37,7 +37,7 @@
                 <p class="text-gray-600">
                     This interactive demo helps understand how IoU works in object detection tasks.
                     Draw ground truth (black) and prediction (colored) boxes to see how well they match.
-                    The color of prediction boxes indicates the quality of the match:
+                    Double-click any box to delete it. The color of prediction boxes indicates the quality of the match:
                 </p>
                 <ul class="list-disc ml-6 mt-2">
                     <li>Red: No significant overlap</li>
@@ -84,7 +84,7 @@
 
                 <template x-for="box in boxes" :key="box.id">
                     <div :class="getBoxClass(box)" class="box absolute border-2" :style="getBoxStyle(box)"
-                        :data-box-id="box.id">
+                        :data-box-id="box.id" @dblclick="deleteBox(box.id)">
                         <div class="resize-handle"></div>
                     </div>
                 </template>
@@ -390,6 +390,11 @@
                         tn: 999999999
                     });
                     return `./confusion-matrix.html?${params.toString()}`;
+                },
+
+                deleteBox(id) {
+                    this.boxes = this.boxes.filter(box => box.id !== id);
+                    this.updateURL();
                 },
             }));
         });

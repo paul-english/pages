@@ -133,6 +133,15 @@
             // Update URL without refreshing the page
             window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
         }
+
+        randomize() {
+            // Generate random values between 0 and 1000
+            this.tp = Math.floor(Math.random() * 1000);
+            this.fp = Math.floor(Math.random() * 1000);
+            this.fn = Math.floor(Math.random() * 1000);
+            this.tn = Math.floor(Math.random() * 1000);
+            this.updateURL();
+        }
     }
 </script>
 
@@ -145,9 +154,15 @@
             Drag the numbers in the confusion matrix left or right to adjust the values and see how they affect all
             related metrics.
         </p>
-        <a href="https://en.wikipedia.org/wiki/Confusion_matrix" target="_blank" class="text-slate-600">
-            Wikipedia: Confusion Matrix
-        </a>
+        <p class="text-slate-600">
+            <a href="https://en.wikipedia.org/wiki/Confusion_matrix" target="_blank" class="text-slate-600">
+                Wikipedia: Confusion Matrix
+            </a>
+        </p>
+        <button @click="randomize()"
+            class="mb-4 px-4 py-2 bg-slate-600 text-white rounded hover:bg-slate-700 transition-colors">
+            Randomize Values
+        </button>
 
         <table class="w-full border-collapse mb-8">
             <tr class="text-sm text-slate-600">
